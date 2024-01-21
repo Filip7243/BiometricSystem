@@ -1,135 +1,102 @@
 package com.neurotec.samples;
 
-import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.io.IOException;
-
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import java.awt.*;
+import java.io.IOException;
 
 public final class MainPanel extends JPanel implements ChangeListener {
 
-	// ===========================================================
-	// Private static fields
-	// ===========================================================
+    // ===========================================================
+    // Private static fields
+    // ===========================================================
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// ===========================================================
-	// Private fields
-	// ===========================================================
+    // ===========================================================
+    // Private fields
+    // ===========================================================
 
-	private JTabbedPane tabbedPane;
-	private EnrollFromImage enrollFromImage;
-	private EnrollFromScanner enrollFromScanner;
-	private IdentifyFinger identifyFinger;
-	private VerifyFinger verifyFinger;
-	private SegmentFingers segmentFingers;
+    private JTabbedPane tabbedPane;
+    private EnrollFromScanner enrollFromScanner;
+    private AddEmployee addEmployee;
+    // ===========================================================
+    // Public constructor
+    // ===========================================================
 
-	// ===========================================================
-	// Public constructor
-	// ===========================================================
+    public MainPanel() {
+        super(new GridLayout(1, 1));
+        initGUI();
+    }
 
-	public MainPanel() {
-		super(new GridLayout(1, 1));
-		initGUI();
-	}
+    // ===========================================================
+    // Private methods
+    // ===========================================================
 
-	// ===========================================================
-	// Private methods
-	// ===========================================================
+    private void initGUI() {
+        tabbedPane = new JTabbedPane();
+        tabbedPane.addChangeListener(this);
 
-	private void initGUI() {
-		tabbedPane = new JTabbedPane();
-		tabbedPane.addChangeListener(this);
+        addEmployee = new AddEmployee();
+        addEmployee.init();
+        tabbedPane.addTab("Add Employee", addEmployee);
 
-		enrollFromImage = new EnrollFromImage();
-		enrollFromImage.init();
-		tabbedPane.addTab("Enroll from image", enrollFromImage);
+        enrollFromScanner = new EnrollFromScanner();
+        enrollFromScanner.init();
+        tabbedPane.addTab("Enter to room", enrollFromScanner);
 
-		enrollFromScanner = new EnrollFromScanner();
-		enrollFromScanner.init();
-		tabbedPane.addTab("Enroll from scanner", enrollFromScanner);
+        add(tabbedPane);
+        setPreferredSize(new Dimension(680, 600));
+        tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+    }
 
-		identifyFinger = new IdentifyFinger();
-		identifyFinger.init();
-		tabbedPane.addTab("Identify finger", identifyFinger);
+    // ===========================================================
+    // Public methods
+    // ===========================================================
 
-		verifyFinger = new VerifyFinger();
-		verifyFinger.init();
-		tabbedPane.addTab("Verify finger", verifyFinger);
+    public void obtainLicenses(BasePanel panel) throws IOException {
+        if (!panel.isObtained()) {
+            boolean status = FingersTools.getInstance().obtainLicenses(panel.getRequiredLicenses());
+            FingersTools.getInstance().obtainLicenses(panel.getOptionalLicenses());
+            panel.getLicensingPanel().setRequiredComponents(panel.getRequiredLicenses());
+            panel.getLicensingPanel().setOptionalComponents(panel.getOptionalLicenses());
+            panel.updateLicensing(status);
+        }
+    }
 
-		segmentFingers = new SegmentFingers();
-		segmentFingers.init();
-		tabbedPane.addTab("Segment fingers", segmentFingers);
+    // ===========================================================
+    // Event handling
+    // ===========================================================
 
-		add(tabbedPane);
-		setPreferredSize(new Dimension(680, 600));
-		tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-	}
-
-	// ===========================================================
-	// Public methods
-	// ===========================================================
-
-	public void obtainLicenses(BasePanel panel) throws IOException {
-		if (!panel.isObtained()) {
-			boolean status = FingersTools.getInstance().obtainLicenses(panel.getRequiredLicenses());
-			FingersTools.getInstance().obtainLicenses(panel.getOptionalLicenses());
-			panel.getLicensingPanel().setRequiredComponents(panel.getRequiredLicenses());
-			panel.getLicensingPanel().setOptionalComponents(panel.getOptionalLicenses());
-			panel.updateLicensing(status);
-		}
-	}
-
-	// ===========================================================
-	// Event handling
-	// ===========================================================
-
-	@Override
-	public void stateChanged(ChangeEvent evt) {
-		if (evt.getSource() == tabbedPane) {
-			try {
-				switch (tabbedPane.getSelectedIndex()) {
-				case 0: {
-					obtainLicenses(enrollFromImage);
-					enrollFromImage.updateFingersTools();
-					break;
-				}
-				case 1: {
-					obtainLicenses(enrollFromScanner);
-					enrollFromScanner.updateFingersTools();
-					enrollFromScanner.updateScannerList();
-					break;
-				}
-				case 2: {
-					obtainLicenses(identifyFinger);
-					identifyFinger.updateFingersTools();
-					break;
-				}
-				case 3: {
-					obtainLicenses(verifyFinger);
-					verifyFinger.updateFingersTools();
-					break;
-				}
-				case 4: {
-					obtainLicenses(segmentFingers);
-					segmentFingers.updateFingersTools();
-					break;
-				}
-				default: {
-					throw new IndexOutOfBoundsException("unreachable");
-				}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				SwingUtilities.invokeLater(() -> { JOptionPane.showMessageDialog(this, "Could not obtain licenses for components: " + e.toString(), "Error", JOptionPane.ERROR_MESSAGE); });
-			}
-		}
-	}
+    @Override
+    public void stateChanged(ChangeEvent evt) {
+        if (evt.getSource() == tabbedPane) {
+            try {
+                switch (tabbedPane.getSelectedIndex()) {
+                    case 0: {
+                        obtainLicenses(addEmployee);
+                        addEmployee.updateFingersTools();
+                        addEmployee.updateScannerList();
+                        break;
+                    }
+                    case 1: {
+                        obtainLicenses(enrollFromScanner);
+                        enrollFromScanner.updateFingersTools();
+                        enrollFromScanner.updateScannerList();
+                        break;
+                    }
+                    default: {
+                        throw new IndexOutOfBoundsException("unreachable");
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, "Could not obtain licenses for components: " + e.toString(), "Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }
+    }
 
 }

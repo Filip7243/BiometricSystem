@@ -17,6 +17,8 @@ import javax.swing.*;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.border.SoftBevelBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import java.awt.*;
@@ -26,6 +28,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Objects;
 
 public final class AddEmployee extends BasePanel implements ActionListener, ItemListener {
 
@@ -50,11 +53,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     private JFileChooser fcTemplate;
     private File oldImageFile;
     private File oldTemplateFile;
-
-    private JTextField firstName;
-    private JTextField lastName;
-    private JTextField pesel;
-    private JComboBox<String> comboFingers;
     private JButton btnCancel;
     private JButton btnRefresh;
     private JButton btnSaveImage;
@@ -73,11 +71,22 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     private JScrollPane scrollPane;
     private JScrollPane scrollPaneList;
 
-    // Fingers
-    private NFinger f1; // right hand thumb
-    private NFinger f2; // right hand pointing finger
-    private NFinger f3; // right hand middle finger
-    private NFinger f4; // right hand ring finger
+    // My code
+    private JPanel inputsPanel;
+    private JLabel firstNameLabel;
+    private JTextField firstName;
+    private JLabel lastNameLabel;
+    private JTextField lastName;
+    private JLabel peselLabel;
+    private JTextField pesel;
+    private JComboBox<String> comboFingers;
+    private JButton btnSubmit;
+    private JButton btnAddToDB;
+
+    private NFinger thumb; // right hand thumb
+    private NFinger pointingFinger; // right hand pointing finger
+    private NFinger middleFinger; // right hand middle finger
+    private NFinger ringFinger; // right hand ring finger
 
     private static String query;
 
@@ -114,7 +123,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     // ===========================================================
 
     private void startCapturing() {
-        lblInfo.setText("TUTAJ COS JEST TYLKOE NIE WIEM CO!");
+        lblInfo.setText("Scanning...");
         // TODO: tak biore ID
         if (FingersTools.getInstance().getClient().getFingerScanner() == null) {
             SwingUtilities.invokeLater(() -> {
@@ -218,7 +227,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
             {
                 scrollPaneList = new JScrollPane();
                 scrollPaneList.setPreferredSize(new Dimension(0, 90));
-                panelScanners.add(scrollPaneList, BorderLayout.CENTER);
+                panelScanners.add(scrollPaneList, BorderLayout.NORTH);
                 {
                     scannerList = new JList<>();
                     scannerList.setModel(new DefaultListModel<>());
@@ -243,6 +252,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                     btnScan = new JButton();
                     btnScan.setText("Scan");
                     btnScan.addActionListener(this);
+                    btnScan.setEnabled(false);
                     panelButtons.add(btnScan);
                 }
                 {
@@ -257,6 +267,51 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                     cbAutomatic.setSelected(true);
                     cbAutomatic.setText("Scan automatically");
                     panelButtons.add(cbAutomatic);
+                }
+            }
+            {
+                inputsPanel = new JPanel();
+                inputsPanel.setLayout(new FlowLayout(FlowLayout.LEADING));
+                panelScanners.add(inputsPanel, BorderLayout.CENTER);
+                {
+                    firstNameLabel = new JLabel("First Name");
+                    inputsPanel.add(firstNameLabel);
+                }
+                {
+                    firstName = new JTextField(7);
+                    firstName.getDocument().addDocumentListener(new DocumentListenerImpl());
+                    inputsPanel.add(firstName);
+                }
+                {
+                    lastNameLabel = new JLabel("Last Name");
+                    inputsPanel.add(lastNameLabel);
+                }
+                {
+                    lastName = new JTextField(7);
+                    lastName.getDocument().addDocumentListener(new DocumentListenerImpl());
+                    inputsPanel.add(lastName);
+                }
+                {
+                    peselLabel = new JLabel("Pesel");
+                    inputsPanel.add(peselLabel);
+                }
+                {
+                    pesel = new JTextField(7);
+                    pesel.getDocument().addDocumentListener(new DocumentListenerImpl());
+                    inputsPanel.add(pesel);
+                }
+                {
+                    String[] fingers = {"THUMB", "POINTING", "MIDDLE", "RING"};
+                    comboFingers = new JComboBox<>(fingers);
+                    comboFingers.addItemListener(this);
+                    inputsPanel.add(comboFingers);
+                }
+                {
+                    btnSubmit = new JButton();
+                    btnSubmit.setText("Submit Data");
+                    btnSubmit.setEnabled(true);
+                    btnSubmit.addActionListener(this);
+                    inputsPanel.add(btnSubmit);
                 }
             }
         }
@@ -314,6 +369,13 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                     panelSave.add(btnSaveTemplate);
                 }
                 {
+                    btnAddToDB = new JButton();
+                    btnAddToDB.setText("Add to DB");
+                    btnAddToDB.setEnabled(false);
+                    btnAddToDB.addActionListener(this);
+                    panelSave.add(btnAddToDB);
+                }
+                {
                     cbShowBinarized = new JCheckBox();
                     cbShowBinarized.setSelected(true);
                     cbShowBinarized.setText("Show binarized image");
@@ -341,9 +403,10 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
 
     @Override
     protected void updateControls() {
-        btnScan.setEnabled(!scanning);
+//        btnScan.setEnabled(!scanning); // TODO: moze sie bedzie krzaczylo czy cos
         btnCancel.setEnabled(scanning);
         btnRefresh.setEnabled(!scanning);
+        btnAddToDB.setEnabled(!scanning && (subject != null) && (subject.getStatus() == NBiometricStatus.OK));
         btnSaveTemplate.setEnabled(!scanning && (subject != null) && (subject.getStatus() == NBiometricStatus.OK));
         btnSaveImage.setEnabled(!scanning && (subject != null) && (subject.getStatus() == NBiometricStatus.OK));
         cbShowBinarized.setEnabled(!scanning);
@@ -398,6 +461,11 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                 saveTemplate();
             } else if (ev.getSource() == cbShowBinarized) {
                 updateShownImage();
+            } else if (ev.getSource() == btnSubmit) {
+                //TODO: after data written and finger scanned!, to chyba jednak nie
+            } else if (ev.getSource() == btnAddToDB) {
+                processDB();
+                //TODO: after data written and finger scanned!
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -410,29 +478,30 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         if (event.getSource() == comboFingers) {
             String finger = (String) comboFingers.getSelectedItem();  //
 
-
+            System.out.println(finger);
         }
     }
+
+    private void processDB() {
+        int id = getEmployeeByPesel();
+
+        if (id == -1) {
+            addEmployeeToDB();
+
+            id = getEmployeeByPesel();
+        }
+
+        int fingerId = getFingerByEmployeeId(id);
+
+        if (fingerId == -1) {
+            addEmployeeFingers(id);
+
+            fingerId = getFingerByEmployeeId(id);
+        }
+    }
+
     // TODO: addEmployee, getById, saveFingersToThisEmployee, addRooms
-    private void addEmployeeToDB() {
-        final String query = "INSERT INTO Employee(first_name, last_name, pesel) VALUES (?, ?, ?)";
-
-        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
-            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setString(1, firstName.getText().trim());
-                preparedStatement.setString(2, lastName.getText().trim());
-                preparedStatement.setString(3, pesel.getText().trim());
-
-                preparedStatement.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private int getEmployeeById() {
+    private int getEmployeeByPesel() {
         final String query = "SELECT id FROM Employee WHERE pesel = ?";
 
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
@@ -452,15 +521,65 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         return -1;
     }
 
-    private void addEmployeeFingers(int id) {
-        final String query = "INSERT INTO Finger(f1, f2, f3, f4, employee_id) VALUES (?, ?, ?, ?, ?)";
+    private void addEmployeeToDB() {
+        final String query = "INSERT INTO Employee(first_name, last_name, pesel) VALUES (?, ?, ?)";
 
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-//                preparedStatement.setBytes(1, firstName.getText().trim());
-//                preparedStatement.setBytes(2, lastName.getText().trim());
-//                preparedStatement.setBytes(3, pesel.getText().trim());
-//                preparedStatement.setBytes(4, pesel.getText().trim());
+                preparedStatement.setString(1, firstName.getText().trim());
+                preparedStatement.setString(2, lastName.getText().trim());
+                preparedStatement.setString(3, pesel.getText().trim());
+
+                preparedStatement.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private int getFingerByEmployeeId(int id) {
+        final String query = "SELECT id FROM Finger WHERE employee_id = ?";
+
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setInt(1, id);
+
+                ResultSet rs = preparedStatement.executeQuery();
+
+                return rs.getInt(1);
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return -1;
+    }
+
+    private void addEmployeeFingers(int id) {
+        String finger = "";
+        switch ((String)Objects.requireNonNull(comboFingers.getSelectedItem())) {
+            case "THUMB":
+                finger = "f1";
+                break;
+            case "POINTING":
+                finger = "f2";
+                break;
+            case "MIDDLE":
+                finger = "f3";
+                break;
+            case "RING":
+                finger = "f4";
+                break;
+        }
+        final String query = "INSERT INTO Finger(" + finger + "employee_id) VALUES (?, ?)";
+
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setBytes(1, new byte[]{}); // TODO: get bytes from template!
                 preparedStatement.setInt(5, id);
 
                 preparedStatement.executeUpdate();
@@ -506,12 +625,32 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     }
 
     private class ScannerSelectionListener implements ListSelectionListener {
-
         @Override
         public void valueChanged(ListSelectionEvent e) {
             FingersTools.getInstance().getClient().setFingerScanner(getSelectedScanner());
         }
+    }
 
+    private class DocumentListenerImpl implements DocumentListener {
+        @Override
+        public void insertUpdate(DocumentEvent documentEvent) {
+            updateButtonState();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent documentEvent) {
+            updateButtonState();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent documentEvent) {
+            updateButtonState();
+        }
+
+        private void updateButtonState() {
+            boolean enableButton = !firstName.getText().trim().isEmpty() && !lastName.getText().trim().isEmpty() && !pesel.getText().trim().isEmpty();
+            btnScan.setEnabled(enableButton);
+        }
     }
 
 }

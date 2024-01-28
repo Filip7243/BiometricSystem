@@ -85,14 +85,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     private JButton btnSubmit;
     private JButton btnAddToDB;
     private final Set<String> roomsSelected = new HashSet<>();
-    private boolean roomsChanged = false;
-
-    private NFinger thumb; // right hand thumb
-    private NFinger pointingFinger; // right hand pointing finger
-    private NFinger middleFinger; // right hand middle finger
-    private NFinger ringFinger; // right hand ring finger
-
-    private static String query;
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/biometrics";
 
@@ -329,11 +321,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                 panelRooms.add(scrollPaneRoomList, BorderLayout.NORTH);
                 {
                     roomList = new JList<>();
-                    ListModel<String> model = roomList.getModel();
-                    for (int i = 0; i < model.getSize(); i++) {
-                        String item = (String) model.getElementAt(i);
-                        System.out.println(item);
-                    }
                     roomList.setModel(new DefaultListModel<>());
                     roomList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
                     roomList.setBorder(LineBorder.createBlackLineBorder());
@@ -549,22 +536,22 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         int employeeId = getEmployeeByPesel();
 
         if (employeeId == -1) {
-            System.out.println("EMPLOYEE NIE ISTENIEJE");
+            System.out.println("EMPLOYEE NIE ISTENIEJE " + employeeId);
             addEmployeeToDB();
 
             employeeId = getEmployeeByPesel();
         }
-        System.out.println("EMPLOYEE ISTNIEJE");
+        System.out.println("EMPLOYEE ISTNIEJE " + employeeId);
         System.out.println("SZUKAM FINGER");
         int fingerId = getFingerByEmployeeId(employeeId);
 
         if (fingerId == -1) {
-            System.out.println("FINGER NIE ISTNIEJE");
+            System.out.println("FINGER NIE ISTNIEJE " + fingerId);
             addEmployeeFingers(employeeId);
 
             addEmployeeToRoom(employeeId);
         } else {
-            System.out.println("FINGER ISTNIEJE");
+            System.out.println("FINGER ISTNIEJE " + fingerId);
             addEmployeeToRoom(employeeId);
             updateEmployeeFinger(employeeId);
         }
@@ -645,7 +632,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         final String query = String.format("INSERT INTO finger(%s, employee_id) VALUES (?, ?)", finger);
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setBytes(1, new byte[]{1, 2, 3}); // TODO: get bytes from template! (image enroll)
+                preparedStatement.setBytes(1, getTemplateToTest()); // TODO: get bytes from template! (image enroll)
                 preparedStatement.setInt(2, id);
 
                 preparedStatement.executeUpdate();
@@ -657,13 +644,52 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         }
     }
 
+    private byte[] getTemplateToTest() {
+        String fn = ((String) Objects.requireNonNull(comboFingers.getSelectedItem())).toLowerCase();
+        String imgPath = null;
+
+        switch (fn) {
+            case "thumb":
+                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_1.tif";
+                break;
+            case "pointing":
+                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_2.tif";
+                break;
+            case "middle":
+                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_3.tif";
+                break;
+            case "ring":
+                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_4.tif";
+                break;
+        }
+
+        NSubject subject = new NSubject();
+        NFinger finger = new NFinger();
+
+        finger.setFileName(Objects.requireNonNull(imgPath));
+
+        subject.getFingers().add(finger);
+
+        FingersTools.getInstance().getClient().setFingersTemplateSize(NTemplateSize.LARGE);
+
+        NBiometricStatus status = FingersTools.getInstance().getClient().createTemplate(subject);
+
+        if (status == NBiometricStatus.OK) {
+            System.out.println("JEST GIT!");
+
+            return subject.getTemplateBuffer().toByteArray();
+        }
+
+        return new byte[]{};
+    }
+
     private void updateEmployeeFinger(int employeeId) {
         String finger = ((String) Objects.requireNonNull(comboFingers.getSelectedItem())).toLowerCase();
 
         final String query = String.format("UPDATE finger SET %s = ? WHERE employee_id = ?", finger);
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setBytes(1, new byte[]{1, 2, 3});
+                preparedStatement.setBytes(1, getTemplateToTest());
                 preparedStatement.setInt(2, employeeId);
 
                 preparedStatement.executeUpdate();
@@ -735,7 +761,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                 scanning = false;
                 updateShownImage();
                 if (result.getStatus() == NBiometricStatus.OK) {
-                    updateStatus("Quality: " + getSubject().getFingers().get(0).getObjects().get(0).getQuality());
+                    updateStatus("Quality: " + getSubject().getFingers().get(0).getObjects().get(0).getQuality());  //TODO: getQuailty()
                 } else {
                     updateStatus(result.getStatus().toString());
                 }
@@ -768,8 +794,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
             roomList.getSelectedValuesList().forEach(System.out::println);
             roomsSelected.clear();
             roomsSelected.addAll(roomList.getSelectedValuesList());
-            roomsChanged = true;
-
         }
     }
 

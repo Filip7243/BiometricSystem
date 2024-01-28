@@ -399,22 +399,19 @@ public final class EnrollFromImage extends BasePanel implements ActionListener {
 
         @Override
         public void completed(final NBiometricStatus result, final Object attachment) {
-            SwingUtilities.invokeLater(new Runnable() {
+            SwingUtilities.invokeLater(() -> {
+                if (result == NBiometricStatus.OK) {
+                    updateTemplateCreationStatus(true);
+                    System.out.println("SUBJECT TU!");
+                    byte[] token = subject.getTemplateBuffer().toByteArray();
 
-                @Override
-                public void run() {
-                    if (result == NBiometricStatus.OK) {
-                        updateTemplateCreationStatus(true);
-                        System.out.println("SUBJECT TU!");
-                        byte[] token = subject.getTemplateBuffer().toByteArray();
+                    NTemplate template = null;
+                    NBuffer templateBuffer = null;
 
-                        NTemplate template = null;
-                        NBuffer templateBuffer = null;
+                    try {
+                        templateBuffer = NFile.readAllBytes("C:\\Users\\Filip\\Desktop\\tmp1");
 
-                        try {
-                            templateBuffer = NFile.readAllBytes("C:\\Users\\Filip\\Desktop\\tmp1");
-
-                            byte[] token2 = templateBuffer.toByteArray();
+                        byte[] token2 = templateBuffer.toByteArray();
 
 //                            System.out.println("token = " + Arrays.toString(token));
 //                            System.out.println();
@@ -422,23 +419,23 @@ public final class EnrollFromImage extends BasePanel implements ActionListener {
 //                            System.out.println();
 //                            System.out.println("token2 = " + Arrays.toString(token2));
 
-                            template = new NTemplate(templateBuffer);
-                        } catch (Throwable th) {
-                            System.out.println("DUPA");
-                        } finally {
-                            if (template != null) template.dispose();
-                            if (templateBuffer != null) templateBuffer.dispose();
-                        }
+                        template = new NTemplate(templateBuffer);
+                    } catch (Throwable th) {
+                        System.out.println("DUPA");
+                    } finally {
+                        if (template != null) template.dispose();
+                        if (templateBuffer != null) templateBuffer.dispose();
+                    }
 
-                        try {
-                            Class.forName("com.mysql.cj.jdbc.Driver");
-                        } catch (ClassNotFoundException e) {
-                            throw new RuntimeException(e);
-                        }
-                        String jdbcUrl = "jdbc:mysql://localhost:3306/firma";
-                        String tableName = "finger";
-                        String idCol = "id";
-                        String tokenCol = "token";
+                    try {
+                        Class.forName("com.mysql.cj.jdbc.Driver");
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                    String jdbcUrl = "jdbc:mysql://localhost:3306/firma";
+                    String tableName = "finger";
+                    String idCol = "id";
+                    String tokenCol = "token";
 //                        int id = 1;
 //                        try (Connection connection = DriverManager.getConnection(jdbcUrl, "root", "")) {
 //                            String sql = "INSERT INTO " + tableName + " (" + idCol + ", " + tokenCol + ") VALUES (?, ?)";
@@ -453,40 +450,39 @@ public final class EnrollFromImage extends BasePanel implements ActionListener {
 //                            throw new RuntimeException(e);
 //                        }
 
-                        try (Connection connection = DriverManager.getConnection(jdbcUrl, "root", "")) {
-                            String sql = "SELECT " + tokenCol + " FROM " + tableName + " WHERE " + idCol + " = ?";
+                    try (Connection connection = DriverManager.getConnection(jdbcUrl, "root", "")) {
+                        String sql = "SELECT " + tokenCol + " FROM " + tableName + " WHERE " + idCol + " = ?";
 
-                            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                                preparedStatement.setInt(1, 1);
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                            preparedStatement.setInt(1, 1);
 
-                                try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                                    if (resultSet.next()) {
-                                        // Retrieve the byte array from the result set
-                                        InputStream inputStream = resultSet.getBinaryStream(tokenCol);
-                                        byte[] byteArray = inputStream.readAllBytes();
+                            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                                if (resultSet.next()) {
+                                    // Retrieve the byte array from the result set
+                                    InputStream inputStream = resultSet.getBinaryStream(tokenCol);
+                                    byte[] byteArray = inputStream.readAllBytes();
 
-                                        System.out.println("TOKEN Z BAZY = " + Arrays.toString(byteArray));
-                                    }
+                                    System.out.println("TOKEN Z BAZY = " + Arrays.toString(byteArray));
                                 }
-                            } catch (SQLException e) {
-                                throw new RuntimeException(e);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
                             }
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
-                    } else if (result == NBiometricStatus.BAD_OBJECT) {
-                        SwingUtilities.invokeLater(() -> {
-                            JOptionPane.showMessageDialog(EnrollFromImage.this, "Finger image quality is too low.");
-                        });
-                        updateTemplateCreationStatus(false);
-                    } else {
-                        SwingUtilities.invokeLater(() -> {
-                            JOptionPane.showMessageDialog(EnrollFromImage.this, result);
-                        });
-                        updateTemplateCreationStatus(false);
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
                     }
+                } else if (result == NBiometricStatus.BAD_OBJECT) {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(EnrollFromImage.this, "Finger image quality is too low.");
+                    });
+                    updateTemplateCreationStatus(false);
+                } else {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(EnrollFromImage.this, result);
+                    });
+                    updateTemplateCreationStatus(false);
                 }
             });
         }

@@ -19,7 +19,7 @@ public final class MainPanel extends JPanel implements ChangeListener {
     // ===========================================================
 
     private JTabbedPane tabbedPane;
-    private EnrollFromScanner enrollFromScanner;
+    private EnterToRoom enterToRoom;
     private AddEmployee addEmployee;
     // ===========================================================
     // Public constructor
@@ -42,9 +42,9 @@ public final class MainPanel extends JPanel implements ChangeListener {
         addEmployee.init();
         tabbedPane.addTab("Add Employee", addEmployee);
 
-        enrollFromScanner = new EnrollFromScanner();
-        enrollFromScanner.init();
-        tabbedPane.addTab("Enter to room", enrollFromScanner);
+        enterToRoom = new EnterToRoom();
+        enterToRoom.init();
+        tabbedPane.addTab("Enter to room", enterToRoom);
 
         add(tabbedPane);
         setPreferredSize(new Dimension(680, 600));
@@ -82,9 +82,10 @@ public final class MainPanel extends JPanel implements ChangeListener {
                         break;
                     }
                     case 1: {
-                        obtainLicenses(enrollFromScanner);
-                        enrollFromScanner.updateFingersTools();
-                        enrollFromScanner.updateScannerList();
+                        obtainLicenses(enterToRoom);
+                        enterToRoom.updateFingersTools();
+                        enterToRoom.updateScannerList();
+                        enterToRoom.updateRoomList();
                         break;
                     }
                     default: {

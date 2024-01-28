@@ -13,26 +13,22 @@ import com.neurotec.samples.util.Utils;
 import com.neurotec.swing.NViewZoomSlider;
 import com.neurotec.util.concurrent.CompletionHandler;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.border.SoftBevelBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 public final class EnterToRoom extends BasePanel implements ActionListener {
 
@@ -83,10 +79,11 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
     private JLabel fingerInfoLabel;
     private String fingerToScan;
     private List<NSubject> subjects;
-
+    private static int employeeId = -1;
     private final EnrollHandler enrollHandler = new EnrollHandler();
     private final IdentificationHandler identificationHandler = new IdentificationHandler();
     private static final String DB_URL = "jdbc:mysql://localhost:3306/biometrics";
+    private String chosenRoom;
 
     // ===========================================================
     // Public constructor
@@ -98,6 +95,7 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
         requiredLicenses = new ArrayList<>();
         requiredLicenses.add("Biometrics.FingerExtraction");
         requiredLicenses.add("Devices.FingerScanners");
+        requiredLicenses.add("Biometrics.FingerMatching");
         optionalLicenses = new ArrayList<>();
         optionalLicenses.add("Images.WSQ");
 
@@ -144,13 +142,28 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
         updateControls();
     }
 
-    private void processDB() throws IOException  {
+    private void processDB() throws IOException {
         if (subject == null) {  // test code
             System.out.println("SUBJECT IS NULL!");
 
             subject = new NSubject();
 
-            String imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_1.tif";
+            String imgPath = null;
+
+            switch (fingerToScan.toLowerCase()) {
+                case "thumb":
+                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_THUMB.jpg";
+                    break;
+                case "pointing":
+                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_POINTING.jpg";
+                    break;
+                case "middle":
+                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_MIDDLE.jpg";
+                    break;
+                case "ring":
+                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_RING.jpg";
+                    break;
+            }
 
             NFinger finger = new NFinger();
 
@@ -177,10 +190,6 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
             subject.setId(String.valueOf(employeeId));
             subjects.add(subject);
             enrollmentTask.getSubjects().add(subject);
-
-            System.out.println("Employee ID: " + employeeId);
-            System.out.println("Fingers Data: " + Arrays.toString(fingersData));
-            System.out.println("-----------------------------");
         }
 
         FingersTools.getInstance().getClient().performTask(enrollmentTask, null, enrollHandler);
@@ -217,18 +226,46 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
         return result;
     }
 
-    private int getRoomId() {
-        // get selected room
-        if (roomList.getSelectedValue() == null) {
-            return -1;
+    private List<Integer> getUserRooms() {
+        List<Integer> userRooms = new ArrayList<>();
+
+        if (chosenRoom == null) {
+            System.out.println("CHOSEN ROOM IS NULL");
+            return null;
         }
 
-        String roomName = roomList.getSelectedValue();
+        if (employeeId == -1) {
+            System.out.println("EMPLOYYE ID IS NULL");
+            return null;
+        }
 
+        final String query = "SELECT room_id FROM employee_room WHERE employee_id = ?";
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setInt(1, employeeId);
+
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        int roomId = resultSet.getInt("room_id");
+                        userRooms.add(roomId);
+                    }
+                }
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return userRooms;
+    }
+
+    private int getSelectedRoomId() {
+        // get selected room
         final String query = "SELECT id FROM room WHERE name = ?";
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setString(1, roomName);
+                preparedStatement.setString(1, chosenRoom);
                 try (ResultSet resultSet = preparedStatement.executeQuery()) {
                     if (resultSet.next()) {
                         return resultSet.getInt("id");
@@ -528,6 +565,7 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
             if (ev.getSource() == btnRefresh) {
                 updateScannerList();
                 updateRoomList();
+                // TODO: to ja juz bedzie sakner, to sie przeniesie do startCaputer(), jak nie bedzie dzialac to sie przycisk da
                 processDB();
 
             } else if (ev.getSource() == btnScan) {
@@ -590,7 +628,7 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
     private class RoomSelectionListener implements ListSelectionListener {
         @Override
         public void valueChanged(ListSelectionEvent e) {
-            roomList.getSelectedValuesList().forEach(System.out::println);
+            roomList.getSelectedValuesList().forEach(room -> chosenRoom = room);
             roomsSelected.clear();
             roomsSelected.addAll(roomList.getSelectedValuesList());
         }
@@ -626,27 +664,58 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
         public void completed(final NBiometricStatus status, final Object attachment) {
             SwingUtilities.invokeLater(() -> {
                 if ((status == NBiometricStatus.OK) || (status == NBiometricStatus.MATCH_NOT_FOUND)) {
-
+                    int maxScore = Integer.MIN_VALUE;
                     // Match subjects.
                     for (NSubject s : getSubjects()) {
                         boolean match = false;
                         for (NMatchingResult result : getSubject().getMatchingResults()) {
                             if (s.getId().equals(result.getId())) {
                                 match = true;
-                                System.out.println("MATCHES " + s.getId());  // TODO: tu mi daje id employee
+                                if (maxScore < result.getScore()) {
+                                    maxScore = result.getScore();
+                                    employeeId = Integer.parseInt(s.getId());
+                                }
+                                System.out.println("maxScore = " + maxScore + " emplyee = " + employeeId);
                                 break;
                             }
                         }
                         if (!match) {
-                            System.out.println("NOT MATCHES");
+                            System.out.println("NOT MACHES");
                         }
                     }
+                    System.out.println("MAX SCORE = " + maxScore);
+                    checkIfUserCanEnter(maxScore, employeeId);
                 } else {
                     SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(EnterToRoom.this, "Identification failed: " + status, "Error", JOptionPane.WARNING_MESSAGE);
                     });
                 }
             });
+        }
+
+        private void checkIfUserCanEnter(int maxScore, int employeeId) {
+            if (employeeId != -1) {
+                List<Integer> userRooms = getUserRooms();
+                int roomId = getSelectedRoomId();
+                if (userRooms.contains(roomId) && maxScore > 0) {
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(EnterToRoom.this,
+                            "Door opened!",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE));
+                } else {
+                    System.out.println("ESSUNIA");
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(EnterToRoom.this,
+                            "You are not able to enter this room!",
+                            "Failed",
+                            JOptionPane.INFORMATION_MESSAGE));
+                }
+            } else {
+                System.out.println("ESUNIA2");
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(EnterToRoom.this,
+                        "You are not able to enter this room!",
+                        "Failed",
+                        JOptionPane.INFORMATION_MESSAGE));
+            }
         }
 
         @Override

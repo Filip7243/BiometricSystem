@@ -650,16 +650,16 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
 
         switch (fn) {
             case "thumb":
-                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_1.tif";
+                imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_THUMB.jpg";
                 break;
             case "pointing":
-                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_2.tif";
+                imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_POINTING.jpg";
                 break;
             case "middle":
-                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_3.tif";
+                imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_MIDDLE.jpg";
                 break;
             case "ring":
-                imgPath = "C:\\Users\\Filip\\Desktop\\STUDIA\\inzynierka\\CrossMatch_Sample_DB\\012_3_4.tif";
+                imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_RING.jpg";
                 break;
         }
 

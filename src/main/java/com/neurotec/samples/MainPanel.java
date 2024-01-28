@@ -78,6 +78,7 @@ public final class MainPanel extends JPanel implements ChangeListener {
                         obtainLicenses(addEmployee);
                         addEmployee.updateFingersTools();
                         addEmployee.updateScannerList();
+                        addEmployee.updateRoomList();
                         break;
                     }
                     case 1: {

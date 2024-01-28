@@ -26,9 +26,8 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.Objects;
+import java.util.List;
+import java.util.*;
 
 public final class AddEmployee extends BasePanel implements ActionListener, ItemListener {
 
@@ -72,6 +71,9 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     private JScrollPane scrollPaneList;
 
     // My code
+    private JPanel panelRooms;
+    private JScrollPane scrollPaneRoomList;
+    private JList<String> roomList;
     private JPanel inputsPanel;
     private JLabel firstNameLabel;
     private JTextField firstName;
@@ -82,6 +84,8 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     private JComboBox<String> comboFingers;
     private JButton btnSubmit;
     private JButton btnAddToDB;
+    private final Set<String> roomsSelected = new HashSet<>();
+    private boolean roomsChanged = false;
 
     private NFinger thumb; // right hand thumb
     private NFinger pointingFinger; // right hand pointing finger
@@ -90,7 +94,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
 
     private static String query;
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/firma";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/biometrics";
 
     // ===========================================================
     // Public constructor
@@ -235,7 +239,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                     scannerList.setBorder(LineBorder.createBlackLineBorder());
                     scannerList.addListSelectionListener(new ScannerSelectionListener());
                     scrollPaneList.setViewportView(scannerList);
-
                 }
             }
             {
@@ -316,23 +319,47 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
             }
         }
         {
-            scrollPane = new JScrollPane();
-            panelMain.add(scrollPane, BorderLayout.CENTER);
+            panelRooms = new JPanel();
+            panelRooms.setLayout(new BorderLayout());
+            panelRooms.setBorder(BorderFactory.createTitledBorder("Rooms list"));
+            panelMain.add(panelRooms, BorderLayout.CENTER);
             {
-                view = new NFingerView();
-                view.setShownImage(ShownImage.RESULT);
-                view.setAutofit(true);
-                view.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent ev) {
-                        super.mouseClicked(ev);
-                        if (ev.getButton() == MouseEvent.BUTTON3) {
-                            cbShowBinarized.doClick();
-                        }
+                scrollPaneRoomList = new JScrollPane();
+                scrollPaneList.setPreferredSize(new Dimension(0, 90));
+                panelRooms.add(scrollPaneRoomList, BorderLayout.NORTH);
+                {
+                    roomList = new JList<>();
+                    ListModel<String> model = roomList.getModel();
+                    for (int i = 0; i < model.getSize(); i++) {
+                        String item = (String) model.getElementAt(i);
+                        System.out.println(item);
                     }
+                    roomList.setModel(new DefaultListModel<>());
+                    roomList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+                    roomList.setBorder(LineBorder.createBlackLineBorder());
+                    roomList.addListSelectionListener(new RoomSelectionListener());
+                    scrollPaneRoomList.setViewportView(roomList);
+                }
+            }
+            {
+                scrollPane = new JScrollPane();
+                panelRooms.add(scrollPane, BorderLayout.SOUTH);
+                {
+                    view = new NFingerView();
+                    view.setShownImage(ShownImage.RESULT);
+                    view.setAutofit(true);
+                    view.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent ev) {
+                            super.mouseClicked(ev);
+                            if (ev.getButton() == MouseEvent.BUTTON3) {
+                                cbShowBinarized.doClick();
+                            }
+                        }
 
-                });
-                scrollPane.setViewportView(view);
+                    });
+                    scrollPane.setViewportView(view);
+                }
             }
         }
         {
@@ -428,6 +455,12 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         DefaultListModel<NDevice> model = (DefaultListModel<NDevice>) scannerList.getModel();
         model.clear();
         for (NDevice device : deviceManager.getDevices()) {
+//            System.out.println(device.getId());
+//            System.out.println(device.getDisplayName());
+//            System.out.println(device.getModel());
+//            System.out.println("SerialNo: " + device.getSerialNumber());
+//            System.out.println(device.getMake());
+//            System.out.println("Parent" + device.getParent());
             model.addElement(device);
         }
         NFingerScanner scanner = (NFingerScanner) FingersTools.getInstance().getClient().getFingerScanner();
@@ -435,6 +468,26 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
             scannerList.setSelectedIndex(0);
         } else if (scanner != null) {
             scannerList.setSelectedValue(scanner, true);
+        }
+    }
+
+    public void updateRoomList() {
+        DefaultListModel<String> model = (DefaultListModel<String>) roomList.getModel();
+        model.clear();
+
+        final String query = "SELECT name FROM Room";
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                ResultSet rs = preparedStatement.executeQuery();
+                while (rs.next()) {
+                    String name = rs.getString(1);
+                    model.addElement(name);
+                }
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
         }
     }
 
@@ -451,6 +504,7 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         try {
             if (ev.getSource() == btnRefresh) {
                 updateScannerList();
+                updateRoomList();
             } else if (ev.getSource() == btnScan) {
                 startCapturing();
             } else if (ev.getSource() == btnCancel) {
@@ -463,8 +517,16 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
                 updateShownImage();
             } else if (ev.getSource() == btnSubmit) {
                 //TODO: after data written and finger scanned!, to chyba jednak nie
+                processDB();
             } else if (ev.getSource() == btnAddToDB) {
                 processDB();
+//                processDB();
+                // encrypiton / decryption ?
+                // template do bazy
+
+                System.out.println(((String) comboFingers.getSelectedItem()) + " is scanning!");
+                System.out.println(Arrays.toString(subject.getTemplateBuffer().toByteArray()));
+                System.out.println();
                 //TODO: after data written and finger scanned!
             }
         } catch (Exception e) {
@@ -483,21 +545,31 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     }
 
     private void processDB() {
-        int id = getEmployeeByPesel();
+        System.out.println("STARTUJE DODAWANIE");
+        int employeeId = getEmployeeByPesel();
 
-        if (id == -1) {
+        if (employeeId == -1) {
+            System.out.println("EMPLOYEE NIE ISTENIEJE");
             addEmployeeToDB();
 
-            id = getEmployeeByPesel();
+            employeeId = getEmployeeByPesel();
         }
-
-        int fingerId = getFingerByEmployeeId(id);
+        System.out.println("EMPLOYEE ISTNIEJE");
+        System.out.println("SZUKAM FINGER");
+        int fingerId = getFingerByEmployeeId(employeeId);
 
         if (fingerId == -1) {
-            addEmployeeFingers(id);
+            System.out.println("FINGER NIE ISTNIEJE");
+            addEmployeeFingers(employeeId);
 
-            fingerId = getFingerByEmployeeId(id);
+            addEmployeeToRoom(employeeId);
+        } else {
+            System.out.println("FINGER ISTNIEJE");
+            addEmployeeToRoom(employeeId);
+            updateEmployeeFinger(employeeId);
         }
+        System.out.println("KONIEC!!!!");
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Success added to DB", "Added to DB!", JOptionPane.PLAIN_MESSAGE));
     }
 
     // TODO: addEmployee, getById, saveFingersToThisEmployee, addRooms
@@ -508,9 +580,13 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
                 preparedStatement.setString(1, pesel.getText().trim());
 
-                ResultSet rs = preparedStatement.executeQuery();
-
-                return rs.getInt(1);
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    if (resultSet.next()) {
+                        return resultSet.getInt("id");
+                    } else {
+                        return -1;
+                    }
+                }
             } catch (SQLException e) {
                 System.out.println(e.getMessage());
             }
@@ -523,7 +599,6 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
 
     private void addEmployeeToDB() {
         final String query = "INSERT INTO Employee(first_name, last_name, pesel) VALUES (?, ?, ?)";
-
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
                 preparedStatement.setString(1, firstName.getText().trim());
@@ -541,18 +616,23 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
 
     private int getFingerByEmployeeId(int id) {
         final String query = "SELECT id FROM Finger WHERE employee_id = ?";
-
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
                 preparedStatement.setInt(1, id);
 
-                ResultSet rs = preparedStatement.executeQuery();
-
-                return rs.getInt(1);
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    if (resultSet.next()) {
+                        return resultSet.getInt("id");
+                    } else {
+                        return -1;
+                    }
+                }
             } catch (SQLException e) {
+                System.out.println("TUTAJ?");
                 System.out.println(e.getMessage());
             }
         } catch (SQLException e) {
+            System.out.println("ALBO TUTAJ?");
             System.out.println(e.getMessage());
         }
 
@@ -560,29 +640,80 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
     }
 
     private void addEmployeeFingers(int id) {
-        String finger = "";
-        switch ((String)Objects.requireNonNull(comboFingers.getSelectedItem())) {
-            case "THUMB":
-                finger = "f1";
-                break;
-            case "POINTING":
-                finger = "f2";
-                break;
-            case "MIDDLE":
-                finger = "f3";
-                break;
-            case "RING":
-                finger = "f4";
-                break;
-        }
-        final String query = "INSERT INTO Finger(" + finger + "employee_id) VALUES (?, ?)";
+        String finger = ((String) Objects.requireNonNull(comboFingers.getSelectedItem())).toLowerCase();
 
+        final String query = String.format("INSERT INTO finger(%s, employee_id) VALUES (?, ?)", finger);
         try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setBytes(1, new byte[]{}); // TODO: get bytes from template!
-                preparedStatement.setInt(5, id);
+                preparedStatement.setBytes(1, new byte[]{1, 2, 3}); // TODO: get bytes from template! (image enroll)
+                preparedStatement.setInt(2, id);
 
                 preparedStatement.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private void updateEmployeeFinger(int employeeId) {
+        String finger = ((String) Objects.requireNonNull(comboFingers.getSelectedItem())).toLowerCase();
+
+        final String query = String.format("UPDATE finger SET %s = ? WHERE employee_id = ?", finger);
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setBytes(1, new byte[]{1, 2, 3});
+                preparedStatement.setInt(2, employeeId);
+
+                preparedStatement.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private List<Integer> getRoomsId() {
+        ArrayList<String> names = new ArrayList<>(roomsSelected);
+        List<Integer> ids = new ArrayList<>();
+        final String query = "SELECT id FROM room WHERE name = ?";
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                for (int i = 0; i < names.size(); i++) {
+                    preparedStatement.setString(1, names.get(i));
+                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                        if (resultSet.next()) {
+                            int roomId = resultSet.getInt("id");
+                            ids.add(roomId);
+                        } else {
+                            System.out.println("Nie znaleziono pokoju o nazwie: " + names.get(i));
+                        }
+                    }
+                }
+
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return ids;
+    }
+
+    private void addEmployeeToRoom(int employeeId) {
+        List<Integer> ids = getRoomsId();
+        final String query = "INSERT IGNORE INTO employee_room(employee_id, room_id) VALUES (?, ?)";
+        try (Connection connection = DriverManager.getConnection(DB_URL, "root", "")) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                for (Integer id : ids) {
+                    preparedStatement.setInt(1, employeeId);
+                    preparedStatement.setInt(2, id);
+                    preparedStatement.addBatch();
+                }
+                preparedStatement.executeBatch();
             } catch (SQLException e) {
                 System.out.println(e.getMessage());
             }
@@ -628,6 +759,17 @@ public final class AddEmployee extends BasePanel implements ActionListener, Item
         @Override
         public void valueChanged(ListSelectionEvent e) {
             FingersTools.getInstance().getClient().setFingerScanner(getSelectedScanner());
+        }
+    }
+
+    private class RoomSelectionListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            roomList.getSelectedValuesList().forEach(System.out::println);
+            roomsSelected.clear();
+            roomsSelected.addAll(roomList.getSelectedValuesList());
+            roomsChanged = true;
+
         }
     }
 

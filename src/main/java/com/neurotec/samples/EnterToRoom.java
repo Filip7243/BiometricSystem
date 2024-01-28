@@ -161,7 +161,7 @@ public final class EnterToRoom extends BasePanel implements ActionListener {
                     imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_MIDDLE.jpg";
                     break;
                 case "ring":
-                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_RING.jpg";
+                    imgPath = "C:\\Users\\Filip\\Desktop\\odciski\\PL_RING.jpg";  // TODO: wszsytko dziala, teraz amienic to na pozysiwanie odciusku ze skanera ale to juz we wtorek ;)
                     break;
             }
 

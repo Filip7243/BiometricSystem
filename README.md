@@ -43,11 +43,11 @@ You also need some fingerprint scanner with drivers. I used optical [scanner](ht
 
 If you want to know more about biometrics and project look at the [documentation](architecture/DOCS_PL.pdf) (Polish language).
 
-# UseCase Diagram
+## UseCase Diagram
 
 ![UseCase_Diagram](architecture/UseCase_Diagram.png?raw=true)
 
-# ERD Diagram
+## ERD Diagram
 
 ![ERD_DIAGRAM](architecture/DB_diagram.png?raw=true)
 

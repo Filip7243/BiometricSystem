@@ -8,6 +8,7 @@ The project aims to develop an access control system for company premises by uti
 - MegaMatcherSDK (Biometric SDK)
 - Java Swing
 - JDBC
+- XAMMP
 - MySQL
 - Gradle
 
@@ -15,6 +16,7 @@ I used in project GUI template from MegaMatcherSDK and modified it.
 I removed unnecessary windows and replace them with mine.
 
 ## WHAT IS MEGAMATCHER SDK?
+
 MegaMatcher technology is intended for large-scale AFIS and multi-biometric systems developers. 
 The technology ensures high reliability and speed of biometric identification even when using large
 databases.
@@ -31,12 +33,19 @@ If you want to run the project you need to have MegaMatcherSDK licence activated
 
 You need to have MegaMatcherSDK licence activated. Then move Licenses directory (SDK_DIR\\BIN\\Licences) to parent directory of the project (..\\Licences).
 
-To create database use this [DB_build_script](architecture/DB_build_script.sql)
+To create database with tables use this [script](architecture/DB_build_script.sql).
 
 After all execute command `gradle run` in project directory.
 
 You also need some fingerprint scanner with drivers. I used optical [scanner](https://www.futronic-tech.com/pro-detail.php?pro_id=1543)
 
+If you want to know more about biometrics and project look at the [documentation](architecture/DOCS_PL.pdf) (Polish language).
+
+# ERD Diagram
+
+![ERD_DIAGRAM](architecture/DB_diagram.png)
+
 ## GUI
 
-
+![GUI_1](architecture/GUI_1.jpg?raw=true)
+![GUI_1](architecture/GUI_2.jpg?raw=true)

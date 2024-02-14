@@ -27,7 +27,7 @@ and Linux platforms.
 
 ## Licence
 
-If you want to run the project you need to have MegaMatcherSDK licence activated. You can use the trial version here: [MegaMatcherSDK](https://www.neurotechnology.com/download.html#megamatcher_verifinger_verilook_verieye_sdk_trial). To active follow the instructions that are in documentation.
+If you want to run the project you need to have MegaMatcherSDK licence activated. You can use the trial version here: [MegaMatcherSDK](https://www.neurotechnology.com/download.html#megamatcher_verifinger_verilook_verieye_sdk_trial). To active licence follow the instructions that are in documentation.
 
 ## How to run
 

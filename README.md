@@ -31,7 +31,7 @@ If you want to run the project you need to have MegaMatcherSDK licence activated
 
 You need to have MegaMatcherSDK licence activated. Then move Licenses directory (SDK_DIR\\BIN\\Licences) to parent directory of the project (..\\Licences).
 
-To create database use this ![DB_build_script](architecture/DB_build_script.sql)
+To create database use this [DB_build_script](architecture/DB_build_script.sql)
 
 After all execute command `gradle run` in project directory.
 
